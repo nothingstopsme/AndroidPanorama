@@ -301,9 +301,10 @@ inline fun <PREVIEW: View> MainScreenStates.MainScreen(
         val restart = remember {
 
             suspend {
+                lockingEnabled.value = false
                 reset()
 
-                lockingEnabled.value = false
+
                 //takingPicture = false
 
                 progressBarVisible.value = false

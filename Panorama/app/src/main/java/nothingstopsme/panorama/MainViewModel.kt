@@ -33,12 +33,13 @@ data class PopupMessage(private val message: String, val action: Pair<String, su
 
 class MainViewModel : ViewModel() {
 
-
-    private val cameraLifecycleOwner = object : LifecycleOwner {
+    private class CameraLifecycleOwner: LifecycleOwner {
         private val lifecycleImpl = LifecycleRegistry(this)
 
         override val lifecycle: Lifecycle
-            get() { return lifecycleImpl }
+            get() {
+                return lifecycleImpl
+            }
 
         init {
             lifecycleImpl.currentState = Lifecycle.State.STARTED
@@ -47,8 +48,12 @@ class MainViewModel : ViewModel() {
         fun finish() {
             lifecycleImpl.currentState = Lifecycle.State.DESTROYED
         }
-
     }
+
+
+    private var cameraLifecycleOwner = CameraLifecycleOwner()
+
+
 
     val backgroundExecutor: ExecutorService = Executors.newCachedThreadPool()
 
@@ -172,5 +177,10 @@ class MainViewModel : ViewModel() {
     }
 
 
+    fun releaseCamera() {
+        cameraLifecycleOwner.finish()
+        cameraLifecycleOwner = CameraLifecycleOwner()
+        camera = null
+    }
 
 }

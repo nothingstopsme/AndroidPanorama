@@ -17,6 +17,7 @@ import androidx.activity.viewModels
 import androidx.camera.camera2.interop.Camera2CameraControl
 import androidx.camera.camera2.interop.CaptureRequestOptions
 import androidx.camera.camera2.interop.ExperimentalCamera2Interop
+import androidx.camera.core.CameraControl
 import androidx.camera.core.CameraUnavailableException
 import androidx.camera.core.FocusMeteringAction
 import androidx.camera.core.ImageCapture
@@ -25,14 +26,14 @@ import androidx.camera.view.PreviewView
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import nothingstopsme.panorama.ui.theme.PanoramaTheme
 import java.io.File
-import java.io.FileInputStream
-import java.nio.ByteBuffer
 import java.util.concurrent.ExecutionException
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
@@ -68,7 +69,6 @@ class MainActivity : ComponentActivity() {
     private lateinit var cameraPreviewView: PreviewView
 
     private lateinit var sensorManager: SensorManager
-    private var rotationSensor: Sensor? = null
 
 
     private val stitcher by lazy {
@@ -124,63 +124,70 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
 
-        var readyFlag = true
-        if (this::sensorManager.isInitialized) {
-            if(rotationSensor == null){
-                rotationSensor = sensorManager.getDefaultSensor(Sensor.TYPE_GAME_ROTATION_VECTOR)
-            }
+        //var readyFlag = false
+        if (viewModel.angleStepIndex.value == 0) {
+            //readyFlag = true
+            if (this::sensorManager.isInitialized) {
 
-            if(rotationSensor != null){
-                sensorManager.registerListener(
-                    deviceOrientationMonitor,
-                    rotationSensor,
-                    SensorManager.SENSOR_DELAY_NORMAL
-                )
+                val rotationSensor =
+                    sensorManager.getDefaultSensor(Sensor.TYPE_GAME_ROTATION_VECTOR)
 
-                // hooking up the sensor update callback a bit later to avoid inaccurate sensor data sent to
-                // a listener who has just been registered
-                this.lifecycleScope.launch {
-                    delay(1000)
-                    deviceOrientationMonitor.onUpdate {
-                        viewModel.updateTargetOffset(this)
+
+                if (rotationSensor != null) {
+                    sensorManager.registerListener(
+                        deviceOrientationMonitor,
+                        rotationSensor,
+                        SensorManager.SENSOR_DELAY_NORMAL
+                    )
+
+                    // hooking up the sensor update callback a bit later to avoid inaccurate sensor data sent to
+                    // a listener who has just been registered
+                    this.lifecycleScope.launch {
+                        delay(1000)
+                        deviceOrientationMonitor.onUpdate {
+                            viewModel.updateTargetOffset(this)
+                        }
                     }
+
+
+                } else {
+                    viewModel.popupMessage.value =
+                        PopupMessage(getString(R.string.rotation_sensor_unavailable))
+                    //readyFlag = false
+                    return
                 }
 
-            } else {
-                viewModel.popupMessage.value = PopupMessage(getString(R.string.rotation_sensor_unavailable))
-                readyFlag = false
             }
-
-
-            /*
-            firstLookAt?.let {
-                this@MainActivity.lifecycleScope.launch {
-                    val lookAtNow = deviceOrientationMonitor.getLatestLookAt()
-
-                    lookAtNow.applyRotationFrom(it)
-                    firstLookAt = lookAtNow
-                }
-            }
-
-             */
-
-
         }
 
+
+        preparePreview {
+            // doing nothing
+        }
+
+        /*
         if (this::cameraPreviewView.isInitialized) {
             //viewModel.cameraPreview.setSurfaceProvider(cameraPreviewView.surfaceProvider)
             viewModel.updateCameraPreviewSurfaceProvider(cameraPreviewView.surfaceProvider)
         }
+        *
+         */
 
-        viewModel.readyFlag.value = readyFlag
+
+
+        viewModel.readyFlag.value = true
 
     }
 
     override fun onPause() {
 
-        if (this::sensorManager.isInitialized) {
-            sensorManager.unregisterListener(deviceOrientationMonitor)
-            deviceOrientationMonitor.onUpdate(null)
+        if (viewModel.angleStepIndex.value == 0) {
+            if (this::sensorManager.isInitialized) {
+                sensorManager.unregisterListener(deviceOrientationMonitor)
+                deviceOrientationMonitor.onUpdate(null)
+            }
+
+            viewModel.releaseCamera()
         }
         viewModel.readyFlag.value = false
         super.onPause()
@@ -316,30 +323,37 @@ class MainActivity : ComponentActivity() {
 
     }
 
+    private fun preparePreview(onPreviewReady: suspend (Boolean) -> Unit) {
+        if (!this::cameraPreviewView.isInitialized)
+            return
+
+        viewModel.updateCameraPreviewSurfaceProvider(cameraPreviewView.surfaceProvider)
+
+        this.lifecycleScope.launch {
+            try {
+                viewModel.bindCamera(this@MainActivity)
+
+            }
+            catch (ex: TimeoutException) {
+                viewModel.popupMessage.value = PopupMessage(resources.getString(R.string.camera_binding_timedout))
+                return@launch
+            }
+            catch (ex: CameraUnavailableException) {
+                viewModel.popupMessage.value = PopupMessage(resources.getString(R.string.camera_unavailable))
+                return@launch
+            }
+
+            val atStart = (viewModel.angleStepIndex.value == 0)
+            onPreviewReady(atStart)
+            if (atStart)
+                viewModel.popupMessage.value = PopupMessage(resources.getString(R.string.aim_at))
+        }
+    }
+
     private fun preparePreview(context: Context, onPreviewReady: suspend (Boolean) -> Unit): PreviewView {
         return PreviewView(context).also {
             cameraPreviewView = it
-            viewModel.updateCameraPreviewSurfaceProvider(cameraPreviewView.surfaceProvider)
-
-            this.lifecycleScope.launch {
-                try {
-                    viewModel.bindCamera(this@MainActivity)
-
-                }
-                catch (ex: TimeoutException) {
-                    viewModel.popupMessage.value = PopupMessage(resources.getString(R.string.camera_binding_timedout))
-                    return@launch
-                }
-                catch (ex: CameraUnavailableException) {
-                    viewModel.popupMessage.value = PopupMessage(resources.getString(R.string.camera_unavailable))
-                    return@launch
-                }
-
-                val atStart = (viewModel.angleStepIndex.value == 0)
-                onPreviewReady(atStart)
-                if (atStart)
-                    viewModel.popupMessage.value = PopupMessage(resources.getString(R.string.aim_at))
-            }
+            preparePreview(onPreviewReady)
 
         }
     }
@@ -377,8 +391,7 @@ class MainActivity : ComponentActivity() {
 
 
 
-    private suspend fun preparePictureTaking(): Boolean
-    {
+    private suspend fun preparePictureTaking(): Boolean {
 
         val meteringPointFactory = cameraPreviewView.meteringPointFactory
 
@@ -423,6 +436,9 @@ class MainActivity : ComponentActivity() {
                 }
                 catch (ex: ExecutionException) {
                     Log.d(getString(R.string.app_name), "startFocus threw ExecutionException: ${ex.message}")
+                }
+                catch (ex: CameraControl.OperationCanceledException) {
+                    Log.d(getString(R.string.app_name), "startFocus threw OperationCanceledException: ${ex.message}")
                 }
                 continuation.resume(successful)
 
