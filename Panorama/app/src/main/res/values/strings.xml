@@ -1,0 +1,18 @@
+<resources>
+    <string name="app_name">Panorama</string>
+    <string name="file_provider_authority">panorama.file_provider</string>
+    <string name="min_match_confidence">Minimum match confidence</string>
+    <string name="min_match_confidence_support">Increasing this value can reduce the number of spurious keypoint matches, but a high value might result in too few keypoints being utilised and thus the default motion model dominates the estimation of camera parameters, which could also lower the quality of panorama outcomes</string>
+    <string name="rotation_sensor_unavailable">"No rotation sensor is available"</string>
+    <string name="aim_at">"Please aim at your start view and long-press the screen"</string>
+    <string name="taking_picture_error">"Failed to take a picture. Please retry!"</string>
+    <string name="stitch_succeeded">"A new panorama has been created: %s"</string>
+    <string name="stitch_failed">"Error occurred, code = %s"</string>
+    <string name="exposure_wb_locking_timedout">"Tried to lock exposure/white balance but timed out; continuing without locking"</string>
+    <string name="auto_focusing_timedout">"Tried to conduct auto-focusing but timed out; continuing without auto-focusing"</string>
+    <string name="camera_binding_timedout">"Tried to bind the main camera but timed out. Please restart the app and try again"</string>
+    <string name="camera_unavailable">"Failed to bind the main camera. Please restart the app and try again"</string>
+    <string name="open_cl_enabled">"Open CL enabled"</string>
+    <string name="open">"Open"</string>
+    <string name="failed_to_open">"Failed to open"</string>
+</resources>
