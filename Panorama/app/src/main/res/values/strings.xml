@@ -2,7 +2,7 @@
     <string name="app_name">Panorama</string>
     <string name="file_provider_authority">panorama.file_provider</string>
     <string name="min_match_confidence">Minimum match confidence</string>
-    <string name="min_match_confidence_support">Increasing this value can reduce the number of spurious keypoint matches, but a high value might result in too few keypoints being utilised and thus the default motion model dominates the estimation of camera parameters, which could also lower the quality of panorama outcomes</string>
+    <string name="min_match_confidence_support">Increasing this value can remove more spurious keypoint matches from being included for camera parameter estimation; however, if this value is set too high, very few or even none of keypoint matches will be taken into account and thus the default rotation model dominates the estimation result, which is also likely to lower the quality of panorama outcomes</string>
     <string name="rotation_sensor_unavailable">"No rotation sensor is available"</string>
     <string name="aim_at">"Please aim at your start view and long-press the screen"</string>
     <string name="taking_picture_error">"Failed to take a picture. Please retry!"</string>

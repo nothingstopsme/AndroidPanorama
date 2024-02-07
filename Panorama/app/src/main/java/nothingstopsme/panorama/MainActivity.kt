@@ -7,9 +7,11 @@ import android.content.pm.PackageManager
 import android.hardware.Sensor
 import android.hardware.SensorManager
 import android.hardware.camera2.CaptureRequest
+import android.os.Build
 import android.os.Bundle
 import android.os.Environment
 import android.util.Log
+import android.view.View
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
@@ -25,10 +27,11 @@ import androidx.camera.core.ImageCaptureException
 import androidx.camera.view.PreviewView
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.lifecycleScope
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -87,8 +90,38 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        val windowInsetsController =
+            WindowCompat.getInsetsController(window, window.decorView)
+
+        windowInsetsController.systemBarsBehavior =
+            WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
 
 
+
+        if (Build.VERSION.SDK_INT >= 30) {
+            window.decorView.setOnApplyWindowInsetsListener { view, windowInsets ->
+
+                if (windowInsets.isVisible(WindowInsetsCompat.Type.systemBars())) {
+
+                    windowInsetsController.hide(WindowInsetsCompat.Type.systemBars())
+
+
+                }
+
+
+                view.onApplyWindowInsets(windowInsets)
+            }
+        }
+        else {
+            window.decorView.setOnSystemUiVisibilityChangeListener { visibility ->
+
+                if (visibility and View.SYSTEM_UI_FLAG_HIDE_NAVIGATION == 0
+                    || visibility and View.SYSTEM_UI_FLAG_FULLSCREEN == 0) {
+                    windowInsetsController.hide(WindowInsetsCompat.Type.systemBars())
+                }
+
+            }
+        }
 
 
         val permissionsRequired = arrayOf(
@@ -119,6 +152,8 @@ class MainActivity : ComponentActivity() {
 
         initialise()
     }
+
+
 
     @ExperimentalCamera2Interop
     override fun onResume() {
